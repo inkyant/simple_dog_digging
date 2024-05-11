@@ -78,9 +78,9 @@ def getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_w
 
     idx = np.argmin(abs(derivs[1:])) + 1
 
-    rho = x.detach().numpy()[idx]
+    rho = x.detach()[idx]
 
-    return getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, torch.tensor(rho))
+    return getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, rho)
 
 
 if __name__ == '__main__':
