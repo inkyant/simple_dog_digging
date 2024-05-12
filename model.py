@@ -96,7 +96,7 @@ if __name__ == '__main__':
     depth = torch.linspace(0, 15, precision)
     width = 20
 
-    forces = getForce(angle, width, depth, torch.tensor(30*to_rad), 0.294, 2)
+    forces = getForce(angle, width, depth, torch.tensor(31*to_rad), 0.294, 2)
 
     plt.plot(depth, forces*0.01)
     plt.xlabel("Depth (cm)")
