@@ -12,10 +12,6 @@ if __name__ == "__main__":
     
     # simulation params
     steps = 2000
-    
-    interval = 30
-    total_time = 10
-    anim_speed = int(steps * interval * 0.001 / total_time)
 
     # foot params
     entrance_angle = torch.tensor(80 * to_rads)
@@ -27,28 +23,30 @@ if __name__ == "__main__":
     density = 2
 
     # simulation
-    times = torch.linspace(0, total_time, steps)
-    depths = (-4)*torch.sqrt((total_time/2)**2 - (times - (total_time/2))**2)
+    max_depth = 5
+    length = 10
+    trajX = torch.linspace(10, 0, steps)
+    trajY = (-2*max_depth / length)*torch.sqrt((length/2)**2 - (trajX - (length/2))**2)
 
     # calculate forces for all depths.
-    forces = getForce(entrance_angle, width, depths, friction_angle, cohesion, density)*-0.01
+    forces = getForce(entrance_angle, width, trajY, friction_angle, cohesion, density)*-0.01
 
     fig, ax = plt.subplots()
 
-    line1 = ax.plot(times[0], forces[0], label="Force")[0]
-    line2 = ax.plot(times[0], depths[0], label="Depth")[0]
-    ax.set(xlim=[0, total_time], ylim=[-20, 5], xlabel='Time [s]', ylabel='Depth [cm]/Force [N]')
+    line2 = ax.plot(trajX[0], trajY[0], label="Trajectory")[0]
+    ax.set(xlim=[-1, length+1], ylim=[-2*max_depth, 2])
+
+    # timing constants
+    time = 10
 
     def update(frame):
-        frame *= anim_speed
+        frame *= 2
         # update the plots:
-        line1.set_xdata(times[:frame])
-        line1.set_ydata(forces[:frame])
-        line2.set_xdata(times[:frame])
-        line2.set_ydata(depths[:frame])
-        return (line1, line2)
+        line2.set_xdata(trajX[:frame])
+        line2.set_ydata(trajY[:frame])
+        return line2
 
 
-    ani = animation.FuncAnimation(fig=fig, func=update, frames=int(steps/anim_speed), interval=interval)
+    ani = animation.FuncAnimation(fig=fig, func=update, frames=int(steps/2), interval=(time*100 / steps))
     plt.show()
 
