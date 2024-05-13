@@ -58,7 +58,7 @@ def getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion,
 
 
 
-def getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight):
+def getForce(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_weight):
     '''
     entrance_angle is angle of the tool from the horizontal\n
     width is the width of the tool cutting the soil\n
@@ -68,22 +68,25 @@ def getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_w
     soil_weight is the unit weight (density) of the soil, 2.0 g/cc\n
     All angle values in radians
     '''
-    # compute the derivative of the function with multiple values
-    precision = 2000
-    x = torch.linspace(0, 90*to_rad, precision, requires_grad = True)
 
-    Y = getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, x)
-    y = torch.sum(Y)
+    rho_angles = []
 
-    y.backward()
+    for d in depths:
+        # compute the derivative of the function with multiple values
+        precision = 0.01
+        x = torch.linspace(10*to_rad, 60*to_rad, int(90/precision), requires_grad = True)
+        Y = getForceWithRho(entrance_angle, width, d, friction_angle, soil_cohesion, soil_weight, x)
+        y = torch.sum(Y)
 
-    derivs = x.grad.detach().numpy()
+        y.backward()
 
-    idx = np.argmin(abs(derivs[1:])) + 1
-    # idx_min_val = np.argmin(Y.detach().numpy()[1:])+1
-    # idx_zeroest_val = np.argmin(abs(Y.detach().numpy()[1:]))+1
+        derivs = x.grad.detach().numpy()
 
-    rho = x.detach()[idx]
+        idx = np.argmin(abs(derivs[1:])) + 1  # deriv = 0
+        # idx = np.argmin(Y.detach().numpy()[1:])+1 # lowest value
+        # idx = np.argmin(abs(Y.detach().numpy()[1:]))+1 # value = 0
+
+        rho_angles.append(x.detach()[idx])
 
     # print('deriv closest to zero', x.detach()[idx].item(), 'smallest value', x.detach()[idx_min_val].item(), 'value closest to zero', x.detach()[idx_zeroest_val].item())
 
@@ -95,7 +98,7 @@ def getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_w
 
     # plt.show()
 
-    return getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, rho)
+    return getForceWithRho(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_weight, torch.tensor(rho_angles))
 
 
 def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight):
@@ -111,7 +114,7 @@ def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, 
 
 if __name__ == '__main__':
 
-    force_test = getForce(torch.tensor(40*to_rad), 5, 5, torch.tensor(31*to_rad), 0.294, 2).item()
+    force_test = getForce(torch.tensor(40*to_rad), 5, torch.tensor([5]), torch.tensor(31*to_rad), 0.294, 2).item()
     # print("soil force: ", force_test)
 
     assert abs(force_test - 498.3981) < 0.001
