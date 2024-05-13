@@ -36,6 +36,9 @@ if __name__ == "__main__":
     acc = torch.diff(vel, dim=0) / dt
     acc = torch.cat((acc[0, :].reshape((1,2)), acc[0, :].reshape((1,2)), acc), dim=0)
 
+    # manual setting of acceleration
+    acc = torch.stack((torch.zeros(steps), torch.ones(steps) * 0.4), dim=1)
+
     vel = torch.cat((vel[0, :].reshape((1,2)), vel), dim=0)
 
     # soil params
@@ -57,19 +60,21 @@ if __name__ == "__main__":
     ax1.set(xlim=[-1, length+1], ylim=[-2*max_depth, 2], title="Position")
 
     ax2.plot(pos[:, 0], vel[:, 1])[0]
-    ax2.set(title="Y Velocity vs. Position")
+    ax2.set(title="Y Velocity vs. X Position")
 
     ax3.plot(pos[:, 0], acc[:, 1])[0]
-    ax3.set(title="Y Accel vs. Position", ylim=[-5,5])
+    ax3.set(title="Y Accel vs. X Position", ylim=[0,1])
 
     ax4.plot(pos[:, 0], force_applied[:, 0])[0]
-    ax4.set(title="Y Force Applied vs. Position")
+    ax4.set(title="Y Force Applied vs. X Position")
 
     ax5.plot(pos[:, 0], force_applied[:, 0])[0]
-    ax5.set(title="X Force Applied vs. Position")
+    ax5.set(title="X Force Applied vs. X Position")
 
     ax6.plot(pos[:, 0], soil_forces[:, 0])[0]
-    ax6.set(title="X Soil Force vs. Position")
+    ax6.set(title="X Soil Force vs. X Position")
+
+    fig.tight_layout()
 
     plt.show()
 
