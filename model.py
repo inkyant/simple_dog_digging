@@ -50,7 +50,7 @@ def getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion,
 
     soil_metal_friction_angle = getSoilMetalFrictionAngle(entrance_angle)
 
-    return (1 / sin(entrance_angle + friction_angle + rho + soil_metal_friction_angle)) * (
+    return 0.01 * (1 / sin(entrance_angle + friction_angle + rho + soil_metal_friction_angle)) * (
         -adhesion_force*cos(entrance_angle + friction_angle + rho) + 
          2*side_friction_force*cos(friction_angle) + 
          W*sin(friction_angle+rho) + 
@@ -109,7 +109,7 @@ def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, 
     x = force * sin(entrance_angle + soil_metal_friction_angle)
     y = force * cos(entrance_angle + soil_metal_friction_angle)
     
-    return torch.tensor([x, y])
+    return torch.stack((x, y), dim=1)
 
 
 if __name__ == '__main__':
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     force_test = getForce(torch.tensor(40*to_rad), 5, torch.tensor([5]), torch.tensor(31*to_rad), 0.294, 2).item()
     # print("soil force: ", force_test)
 
-    assert abs(force_test - 498.3981) < 0.001
+    assert abs(force_test - 4.983981) < 0.001
 
     precision = 2000
 
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
     forces = getForce(angle, width, depth, torch.tensor(31*to_rad), 0.294, 2)
 
-    plt.plot(depth, forces*0.01)
+    plt.plot(depth, forces)
     plt.xlabel("Depth (cm)")
     plt.ylabel("Force")
 

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 import torch
 
-from model import getForce
+from model import getForce, getForceVector
 
 import matplotlib.animation as animation
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     acc = torch.cat((torch.tensor([[0, 0]]), acc), dim=0)
 
     # calculate forces for all depths.
-    forces = getForce(entrance_angle, width, trajY, friction_angle, cohesion, density)*-0.01
+    forces = getForceVector(entrance_angle, width, trajY, friction_angle, cohesion, density)
 
     fig, ((ax1, ax4), (ax2, ax5), (ax3, ax6)) = plt.subplots(nrows=3, ncols=2)
 
@@ -61,6 +61,8 @@ if __name__ == "__main__":
     ax5.plot(pos[:, 0], acc[:, 0])[0]
     ax5.set(title="X Accel vs. Position")
 
+    ax6.plot(pos[:, 0], forces[:, 0])[0]
+    ax6.set(title="Force vs. Position")
 
     plt.show()
 
