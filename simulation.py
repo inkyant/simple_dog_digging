@@ -22,31 +22,45 @@ if __name__ == "__main__":
     cohesion = 0.294
     density = 2
 
-    # simulation
+    # digging depth and length
     max_depth = 5
     length = 10
-    trajX = torch.linspace(10, 0, steps)
+
+    # simulation
+    time = 10
+    dt = time / steps
+
+
+    trajX = torch.linspace(0, 10, steps)
     trajY = (-2*max_depth / length)*torch.sqrt((length/2)**2 - (trajX - (length/2))**2)
+
+    pos = torch.stack((trajX, trajY), dim=1)
+    vel = torch.diff(pos, dim=0) / dt
+    vel = torch.cat((torch.tensor([[0, -40]]), vel), dim=0)
+
+    acc = torch.diff(vel, dim=0) / dt
+    acc = torch.cat((torch.tensor([[0, 0]]), acc), dim=0)
 
     # calculate forces for all depths.
     forces = getForce(entrance_angle, width, trajY, friction_angle, cohesion, density)*-0.01
 
-    fig, ax = plt.subplots()
+    fig, ((ax1, ax4), (ax2, ax5), (ax3, ax6)) = plt.subplots(nrows=3, ncols=2)
 
-    line2 = ax.plot(trajX[0], trajY[0], label="Trajectory")[0]
-    ax.set(xlim=[-1, length+1], ylim=[-2*max_depth, 2])
+    ax1.plot(pos[:, 0], pos[:, 1])[0]
+    ax1.set(xlim=[-1, length+1], ylim=[-2*max_depth, 2], title="Position")
 
-    # timing constants
-    time = 10
+    ax2.plot(pos[:, 0], vel[:, 1])[0]
+    ax2.set(title="Y Velocity vs. Position")
 
-    def update(frame):
-        frame *= 2
-        # update the plots:
-        line2.set_xdata(trajX[:frame])
-        line2.set_ydata(trajY[:frame])
-        return line2
+    ax3.plot(pos[:, 0], acc[:, 1])[0]
+    ax3.set(title="Y Accel vs. Position")
+
+    ax4.plot(pos[:, 0], vel[:, 0])[0]
+    ax4.set(title="X Velocity vs. Position")
+
+    ax5.plot(pos[:, 0], acc[:, 0])[0]
+    ax5.set(title="X Accel vs. Position")
 
 
-    ani = animation.FuncAnimation(fig=fig, func=update, frames=int(steps/2), interval=(time*100 / steps))
     plt.show()
 
