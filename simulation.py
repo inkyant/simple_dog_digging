@@ -1,11 +1,12 @@
 import matplotlib.pyplot as plt
 
+from matplotlib.animation import FuncAnimation
+from matplotlib.patches import Rectangle
+
 import torch
 from torch import tan
 
 from model import getForce, getForceVector, getRhoAngles
-
-import matplotlib.animation as animation
 
 if __name__ == "__main__":
 
@@ -66,10 +67,10 @@ if __name__ == "__main__":
     ax3.set(title="Y Accel vs. X Position", ylim=[0,1])
 
     ax4.plot(pos[:, 0], force_applied[:, 0])[0]
-    ax4.set(title="Y Force Applied vs. X Position")
+    ax4.set(title="X Force Applied vs. X Position")
 
-    ax5.plot(pos[:, 0], force_applied[:, 0])[0]
-    ax5.set(title="X Force Applied vs. X Position")
+    ax5.plot(pos[:, 0], force_applied[:, 1])[0]
+    ax5.set(title="Y Force Applied vs. X Position")
 
     ax6.plot(pos[:, 0], soil_forces[:, 0])[0]
     ax6.set(title="X Soil Force vs. X Position")
@@ -78,3 +79,43 @@ if __name__ == "__main__":
 
     plt.show()
 
+    #### ANIMATION ####
+
+    fig = plt.figure()  
+    
+    # marking the x-axis and y-axis 
+    axis = plt.axes(xlim =(0, 10),  
+                    ylim =(-10, 1))  
+    
+    # initializing a line variable 
+    line, = axis.plot([], [], lw = 3)  
+    line.set_data([], []) 
+
+    width = 0.2
+    offset = width / 2
+    
+    def animate(i): 
+        
+        axis.clear()
+        axis.plot(pos[:i, 0], pos[:i, 1])
+        axis.set(xlim=[0, length], ylim=[-2*max_depth, 1])
+        
+        center = (pos[i, 0].item(), pos[i, 1].item())
+
+        axis.add_patch(Rectangle((pos[i, 0] - offset, pos[i, 1] - offset), width, 10, angle=entrance_angle, rotation_point=center))
+        
+        scale = 0.1
+        
+        axis.arrow(center[0], center[1], dx=force_applied[i, 0]*scale, dy=force_applied[i, 1]*scale, width=0.05, color='black')
+        axis.arrow(center[0], center[1], dx=soil_forces[i, 0]*scale, dy=soil_forces[i, 1]*scale, width=0.05, color='brown')
+
+
+    anim = FuncAnimation(fig, animate, frames = steps, interval = dt * 1000, repeat_delay=1000) 
+    
+    plt.show()
+    print("save animation as mp4? [y/n]")
+    ask = input()
+    if ask == 'Y' or ask == 'y':
+        print("saving...")
+        anim.save('animation.mp4', writer = 'ffmpeg', fps = 1/dt) 
+        print("video file saved.")
