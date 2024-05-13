@@ -6,6 +6,10 @@ import numpy as np
 
 to_rad = (pi/180)
 
+def getSoilMetalFrictionAngle(entrance_angle):
+    return torch.where(entrance_angle < (61*to_rad), 24*to_rad, (50.5 - 0.45 * entrance_angle)*to_rad)
+
+
 def getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, rho):
     '''
     entrance_angle is angle of the tool from the horizontal\n
@@ -44,8 +48,7 @@ def getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion,
     # total weight of the soil in the failure wedge
     W = soil_weight * width * side_area
 
-
-    soil_metal_friction_angle = torch.where(entrance_angle < (61*to_rad), 24*to_rad, (50.5 - 0.45 * entrance_angle)*to_rad)
+    soil_metal_friction_angle = getSoilMetalFrictionAngle(entrance_angle)
 
     return (1 / sin(entrance_angle + friction_angle + rho + soil_metal_friction_angle)) * (
         -adhesion_force*cos(entrance_angle + friction_angle + rho) + 
@@ -67,7 +70,7 @@ def getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_w
     '''
     # compute the derivative of the function with multiple values
     precision = 2000
-    x = torch.linspace(0, pi/2, precision, requires_grad = True)
+    x = torch.linspace(0, 90*to_rad, precision, requires_grad = True)
 
     Y = getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, x)
     y = torch.sum(Y)
@@ -77,10 +80,33 @@ def getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_w
     derivs = x.grad.detach().numpy()
 
     idx = np.argmin(abs(derivs[1:])) + 1
+    # idx_min_val = np.argmin(Y.detach().numpy()[1:])+1
+    # idx_zeroest_val = np.argmin(abs(Y.detach().numpy()[1:]))+1
 
     rho = x.detach()[idx]
 
+    # print('deriv closest to zero', x.detach()[idx].item(), 'smallest value', x.detach()[idx_min_val].item(), 'value closest to zero', x.detach()[idx_zeroest_val].item())
+
+    # fig, ax = plt.subplots()
+    # ax.plot(x.detach(), Y.detach(), label='force')
+    # ax.plot(x.detach(), derivs, label='force deriv')
+    # ax.set(ylim=[-1000, 1000])
+    # ax.legend()
+
+    # plt.show()
+
     return getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, rho)
+
+
+def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight):
+    
+    force = getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight)
+    soil_metal_friction_angle = getSoilMetalFrictionAngle(entrance_angle)
+
+    x = force * sin(entrance_angle + soil_metal_friction_angle)
+    y = force * cos(entrance_angle + soil_metal_friction_angle)
+    
+    return torch.tensor([x, y])
 
 
 if __name__ == '__main__':
