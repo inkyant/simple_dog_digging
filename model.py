@@ -56,19 +56,8 @@ def getForceWithRho(entrance_angle, width, depth, friction_angle, soil_cohesion,
          W*sin(friction_angle+rho) + 
          cohesion*cos(friction_angle))
 
-
-
-def getForce(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_weight):
-    '''
-    entrance_angle is angle of the tool from the horizontal\n
-    width is the width of the tool cutting the soil\n
-    depth is the vetical depth of the tool in cm\n
-    friction_angle is the angle of repose for the soil, typically around 31 degrees.\n
-    soil_cohesion is the cohesional constant for the soil, 0.294 kPa\n
-    soil_weight is the unit weight (density) of the soil, 2.0 g/cc\n
-    All angle values in radians
-    '''
-
+def getRhoAngles(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_weight):
+    
     rho_angles = []
 
     for d in depths:
@@ -98,12 +87,26 @@ def getForce(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_
 
     # plt.show()
 
-    return getForceWithRho(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_weight, torch.tensor(rho_angles))
+    return torch.tensor(rho_angles)
+
+def getForce(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_weight, rho=None):
+    '''
+    entrance_angle is angle of the tool from the horizontal\n
+    width is the width of the tool cutting the soil\n
+    depth is the vetical depth of the tool in cm\n
+    friction_angle is the angle of repose for the soil, typically around 31 degrees.\n
+    soil_cohesion is the cohesional constant for the soil, 0.294 kPa\n
+    soil_weight is the unit weight (density) of the soil, 2.0 g/cc\n
+    All angle values in radians
+    '''
+    if rho is None:
+        rho = getRhoAngles(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_weight)
+    return getForceWithRho(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_weight, rho)
 
 
-def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight):
+def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, rho=None):
     
-    force = getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight)
+    force = getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, rho=rho)
     soil_metal_friction_angle = getSoilMetalFrictionAngle(entrance_angle)
 
     x = force * sin(entrance_angle + soil_metal_friction_angle)
