@@ -52,7 +52,7 @@ if __name__ == "__main__":
     # calculate forces for all depths.
     soil_forces = getForceVector(entrance_angle, width, trajY, friction_angle, cohesion, density, rho=rho_angles)
 
-    # F = ma, so F_a - F_s = ma, so F_a = ma + F_s
+    # ΣF = ma, so F_a - F_s = ma, so F_a = ma + F_s
     force_applied = torch.stack((mass, mass), dim=1) * acc + soil_forces
 
     fig, ((ax1, ax4), (ax2, ax5), (ax3, ax6)) = plt.subplots(nrows=3, ncols=2)
