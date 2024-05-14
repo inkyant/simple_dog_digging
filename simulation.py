@@ -42,6 +42,8 @@ if __name__ == "__main__":
 
     vel = torch.cat((vel[0, :].reshape((1,2)), vel), dim=0)
 
+    movement_angle = torch.atan2(vel[:, 1], vel[:, 0])
+
     # soil params
     friction_angle = torch.tensor(31 * to_rads)
     cohesion = 0.294
@@ -50,7 +52,8 @@ if __name__ == "__main__":
     mass = density * width * 0.5 * (trajY**2) * (1/tan(entrance_angle) + 1/tan(rho_angles))
 
     # calculate forces for all depths.
-    soil_forces = getForceVector(entrance_angle, width, trajY, friction_angle, cohesion, density, rho=rho_angles)
+    soil_forces = getForceVector(entrance_angle, width, trajY, 
+                                 friction_angle, cohesion, density, rho=rho_angles)
 
     # ΣF = ma, so F_a + F_s = ma, so F_a = ma - F_s
     total_force = torch.stack((mass, mass), dim=1) * acc
@@ -96,33 +99,47 @@ if __name__ == "__main__":
     offset = width / 2
     
     def animate(i): 
-        
+
         axis.clear()
-        axis.plot(pos[:i, 0], pos[:i, 1])
-        axis.set(xlim=[0, length], ylim=[-2*max_depth, 1])
-        
-        center = (pos[i, 0].item(), pos[i, 1].item())
+        if i > 1:
 
-        axis.add_patch(Rectangle((pos[i, 0] - offset, pos[i, 1] - offset), width, 10, angle=entrance_angle, rotation_point=center))
-        
-        scale = 0.1
-        
-        axis.arrow(center[0], center[1], 
-                   dx=force_applied[i, 0]*scale, dy=force_applied[i, 1]*scale, 
-                   width=0.05, color='black', label='Force Applied')
-        
-        axis.arrow(center[0], center[1], 
-                   dx=soil_forces[i, 0], dy=soil_forces[i, 1], 
-                   width=0.05, color='brown', label='Soil Force')
-        
-        axis.arrow(center[0], center[1], 
-                   dx=total_force[i, 0]*scale, dy=total_force[i, 1]*scale, 
-                   width=0.05, color='green', label='Force Total')
+            dirt_beforeX = torch.tensor((-1, 0))
 
-        axis.legend(loc='lower left')
+            dist_back = pos[i, 1].item() * (1/tan(entrance_angle))
+
+            dirt_extendX = torch.tensor((pos[i, 0].item() + dist_back, length+1))
+            dirt_extendY = torch.tensor((0, 0))
+
+            axis.plot(torch.cat((dirt_beforeX, pos[:i, 0], dirt_extendX)), 
+                      torch.cat((dirt_extendY, pos[:i, 1], dirt_extendY)), color='brown')
+            axis.set(xlim=[-1, length+1], ylim=[-2*max_depth, 1])
+        
+            center = (pos[i, 0].item(), pos[i, 1].item())
+
+            axis.add_patch(Rectangle((pos[i, 0] - offset, pos[i, 1] - offset), width, 10, angle=90-entrance_angle*(1/to_rads), rotation_point=center))
+            
+            scale = 0.025
+            
+            axis.arrow(center[0], center[1], 
+                    dx=force_applied[i, 0]*scale, dy=force_applied[i, 1]*scale, 
+                    width=0.05, color='black', label='Force Applied')
+            
+            axis.arrow(center[0], center[1], 
+                    dx=soil_forces[i, 0]*scale, dy=soil_forces[i, 1]*scale, 
+                    width=0.05, color='orange', label='Soil Force')
+            
+            axis.arrow(center[0], center[1], 
+                    dx=total_force[i, 0]*scale, dy=total_force[i, 1]*scale, 
+                    width=0.05, color='green', label='Force Total')
+            
+            # axis.arrow(center[0], center[1], 
+            #         dx=torch.cos(movement_angle[i]), dy=torch.sin(movement_angle[i]), 
+            #         width=0.05, color='red', label='Angle')
+
+            axis.legend(loc='lower left')
 
 
-    anim = FuncAnimation(fig, animate, frames = steps, interval = dt * 1000, repeat_delay=1000) 
+    anim = FuncAnimation(fig, animate, frames = steps, interval = dt * 1000, repeat_delay=1000)
     
     plt.show()
 
@@ -134,5 +151,5 @@ if __name__ == "__main__":
         ask = input()
     if ask == 'Y' or ask == 'y':
         print("saving...")
-        anim.save('animation.mp4', writer = 'ffmpeg', fps = 1/dt) 
+        anim.save('animation.mp4', writer = 'ffmpeg', fps = 1/dt)
         print("video file saved.")
