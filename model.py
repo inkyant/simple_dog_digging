@@ -112,7 +112,7 @@ def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, 
     x = force * sin(entrance_angle + soil_metal_friction_angle)
     y = force * cos(entrance_angle + soil_metal_friction_angle)
     
-    return torch.stack((x, y), dim=1)
+    return torch.stack((x, -y), dim=1)
 
 
 if __name__ == '__main__':
