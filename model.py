@@ -106,13 +106,42 @@ def getForce(entrance_angle, width, depths, friction_angle, soil_cohesion, soil_
 
 def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, rho=None):
     
-    force = getForce(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight, rho=rho)
-    soil_metal_friction_angle = getSoilMetalFrictionAngle(entrance_angle)
+    if rho is None:
+        rho = getRhoAngles(entrance_angle, width, depth, friction_angle, soil_cohesion, soil_weight)
+    # calculate forces from the sides of the wedge
 
-    x = force * sin(entrance_angle + soil_metal_friction_angle)
-    y = force * cos(entrance_angle + soil_metal_friction_angle)
+    # calculate side area. Have two angles, and depth. Use basic trigonometry.
+    side_area = 0.5 * (depth**2) * (1/tan(entrance_angle) + 1/tan(rho))
+
+    # normal force acting inwards into the wedge.
+    # It is the weight, times the soil pressure, times the average depth of the wedge, times area
+    side_normal_force = soil_weight*(1-sin(friction_angle))*(1/3)*depth*side_area
+
+    side_friction_force = side_normal_force*tan(friction_angle)
+
+    side_cohesion_force = soil_cohesion * side_area
+
+    # cohesion force on rupture plane (in dirt, opposite of tool)
+    rupture_cohesion_force = soil_cohesion * width * depth / sin(rho)
+
+    cohesion = 2*side_cohesion_force + rupture_cohesion_force
+
+    adhesion_force = 0.5*soil_cohesion*width*depth*sin(entrance_angle)
     
-    return torch.stack((x, -y), dim=1)
+    # total weight of the soil in the failure wedge
+    W = soil_weight * width * side_area
+
+    # total weight, just on top of rupture edge
+    W_rupture = soil_weight * width * 0.5 * depth**2 * (1/tan(rho))
+
+    normal_force_rupture = W_rupture / cos(rho)
+    rupture_friction_force = normal_force_rupture * tan(friction_angle)
+
+    x = -adhesion_force*cos(entrance_angle) + 2*side_friction_force*cos(rho) + normal_force_rupture*sin(rho) + rupture_friction_force*cos(rho) + cohesion*cos(rho)
+
+    y = W + 2*side_friction_force*sin(rho) + cohesion*sin(rho) + rupture_friction_force*sin(rho) + cohesion*sin(rho) + adhesion_force*sin(entrance_angle) - normal_force_rupture*cos(rho)
+
+    return torch.stack((-x, -y), dim=1)
 
 
 if __name__ == '__main__':
