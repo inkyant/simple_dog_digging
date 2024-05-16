@@ -6,7 +6,7 @@ from matplotlib.patches import Rectangle
 import torch
 from torch import tan
 
-from model import getForce, getForceVector, getRhoAngles
+from model import getForceVector, getRhoAnglesVector, getSoilMetalFrictionAngle
 
 to_rads = torch.pi / 180.0
 
@@ -18,7 +18,8 @@ def getForcesForPath(pos, time, steps, entrance_angle, width, acc=None):
 
     if acc is None:
         acc = torch.diff(vel, dim=0) / dt
-        acc = torch.cat((acc[0, :].reshape((1,2)), acc[0, :].reshape((1,2)), acc), dim=0)
+        # fill in by just assuming starting accel, also switch from cm/s^2 to m / s^2
+        acc = 0.01 * torch.cat((acc[0, :].reshape((1,2)), acc[0, :].reshape((1,2)), acc), dim=0)
 
     vel = torch.cat((vel[0, :].reshape((1,2)), vel), dim=0)
 
@@ -26,12 +27,12 @@ def getForcesForPath(pos, time, steps, entrance_angle, width, acc=None):
     friction_angle = torch.tensor(31 * to_rads)
     cohesion = 0.294
     density = 2
-    rho_angles = getRhoAngles(entrance_angle, width, pos[:, 1], friction_angle, cohesion, density)
+    rho_angles = getRhoAnglesVector(entrance_angle, width, pos[:, 1], friction_angle, cohesion, density)
 
     max_depth_idx = torch.argmax(abs(pos[:, 1]))
     dirt_dug_through = torch.cat((pos[:max_depth_idx, 1], torch.ones(steps - max_depth_idx)*pos[max_depth_idx, 1]))
     
-    mass = density * width * 0.5 * (dirt_dug_through**2) * (1/tan(entrance_angle) + 1/tan(rho_angles))
+    mass = 0.001 * density * width * 0.5 * (dirt_dug_through**2) * (1/tan(entrance_angle) + 1/tan(rho_angles))
 
     # calculate forces for all depths.
     soil_forces = getForceVector(entrance_angle, width, pos[:, 1], 
@@ -48,22 +49,24 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
     max_depth = torch.min(pos[:, 1]).item()
     length = pos[steps-1, 0]
 
-    fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2)
+    fig, axs = plt.subplots(nrows=2, ncols=2)
 
-    ax1.plot(pos[:, 0], pos[:, 1])[0]
-    ax1.set(xlim=[-1, length+1], ylim=[2*max_depth, 2], title="Position")
+    axs[0][0].plot(pos[:, 0], pos[:, 1])[0]
+    axs[0][0].set(xlim=[-1, length+1], ylim=[2*max_depth, 2], title="Position")
 
-    ax3.plot(pos[:, 0], soil_forces[:, 1])[0]
-    ax3.set(title="Y Soil Force vs. X Position")
+    axs[0][1].set_visible(False)
 
-    ax4.plot(pos[:, 0], soil_forces[:, 0])[0]
-    ax4.set(title="X Soil Force vs. X Position")
+    axs[1][0].plot(pos[:, 0], soil_forces[:, 1])[0]
+    axs[1][0].set(title="Y Soil Force vs. X Position")
 
-    ax5.plot(pos[:, 0], force_applied[:, 1])[0]
-    ax5.set(title="Y Force Applied vs. X Position")
+    axs[1][1].plot(pos[:, 0], soil_forces[:, 0])[0]
+    axs[1][1].set(title="X Soil Force vs. X Position")
+
+    # ax5.plot(pos[:, 0], force_applied[:, 1])[0]
+    # ax5.set(title="Y Force Applied vs. X Position")
     
-    ax6.plot(pos[:, 0], force_applied[:, 0])[0]
-    ax6.set(title="X Force Applied vs. X Position")
+    # ax6.plot(pos[:, 0], force_applied[:, 0])[0]
+    # ax6.set(title="X Force Applied vs. X Position")
 
     fig.tight_layout()
 
@@ -81,9 +84,13 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
     line, = axis.plot([], [], lw = 3)  
     line.set_data([], []) 
 
+    # leg display width
     width = 0.2
     offset = width / 2
     
+    # scale down force vectors
+    scale = 0.1
+
     def animate(i): 
 
         axis.clear()
@@ -103,8 +110,6 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
             center = (pos[i, 0].item(), pos[i, 1].item())
 
             axis.add_patch(Rectangle((pos[i, 0] - offset, pos[i, 1] - offset), width, 10, angle=90-entrance_angle*(1/to_rads), rotation_point=center))
-            
-            scale = 0.025
             
             axis.arrow(center[0], center[1], 
                     dx=force_applied[i, 0]*scale, dy=force_applied[i, 1]*scale, 
@@ -159,7 +164,7 @@ def IK(force, dt, entrance_angle, width, s: SimState):
     friction_angle = torch.tensor(31 * to_rads)
     cohesion = 0.294
     density = 2
-    rho = getRhoAngles(entrance_angle, width, s.pos[1], friction_angle, cohesion, density)
+    rho = getRhoAnglesVector(entrance_angle, width, s.pos[1], friction_angle, cohesion, density)
 
     mass = density * width * 0.5 * (s.max_depth**2) * (1/tan(entrance_angle) + 1/tan(rho))
 
