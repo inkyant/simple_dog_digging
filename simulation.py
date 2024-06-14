@@ -180,7 +180,7 @@ def IK(force, dt, entrance_angle, width, s: SimState):
 if __name__ == "__main__":
 
     # sim params
-    steps = 2000
+    steps = 4000
     time = 10
     dt = time / steps
     state = SimState()
