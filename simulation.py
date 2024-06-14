@@ -155,7 +155,7 @@ class SimState():
     def update(self, acc, dt):
         self.pos += self.vel*dt
         self.vel += acc*dt
-        self.max_depth = max(self.max_depth, self.pos[1].item())
+        self.max_depth = max(self.max_depth, -self.pos[1].item())
 
 
 def IK(force, dt, entrance_angle, width, s: SimState):
