@@ -4,7 +4,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Rectangle
 
 import torch
-from torch import tan
+from torch import cos, sin, tan
 
 from model import getForceVector, getRhoAnglesVector, getSoilMetalFrictionAngle
 
@@ -49,18 +49,20 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
     max_depth = torch.min(pos[:, 1]).item()
     length = pos[steps-1, 0]
 
-    fig, axs = plt.subplots(nrows=2, ncols=2)
+    fig, axs = plt.subplots(nrows=2, ncols=1)
 
-    axs[0][0].plot(pos[:, 0], pos[:, 1])[0]
-    axs[0][0].set(xlim=[-1, length+1], ylim=[2*max_depth, 2], title="Position")
+    axs[0].plot(pos[:, 0], pos[:, 1])[0]
+    axs[0].set(xlim=[-1, length+1], ylim=[2*max_depth, 2], title="Position")
 
-    axs[0][1].set_visible(False)
+    # axs[0][1].set_visible(False)
 
-    axs[1][0].plot(pos[:, 0], soil_forces[:, 1])[0]
-    axs[1][0].set(title="Y Soil Force vs. X Position")
+    axs[1].plot(pos[:, 0], soil_forces[:, 1], label="Vertical Force")[0]
+    axs[1].plot(pos[:, 0], soil_forces[:, 0], label="Horizontal Force")[0]
+    axs[1].set(title="Soil Force vs. X Position")
+    axs[1].legend()
 
-    axs[1][1].plot(pos[:, 0], soil_forces[:, 0])[0]
-    axs[1][1].set(title="X Soil Force vs. X Position")
+    # axs[1][1].plot(pos[:, 0], soil_forces[:, 0])[0]
+    # axs[1][1].set(title="X Soil Force vs. X Position")
 
     # ax5.plot(pos[:, 0], force_applied[:, 1])[0]
     # ax5.set(title="Y Force Applied vs. X Position")
@@ -75,6 +77,7 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
     #### ANIMATION ####
 
     fig = plt.figure()  
+    fig.set_size_inches(9, 9)
     
     # marking the x-axis and y-axis 
     axis = plt.axes(xlim =(0, 10),  
@@ -123,11 +126,17 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
                     dx=total_force[i, 0]*scale, dy=total_force[i, 1]*scale, 
                     width=0.05, color='green', label='Force Total')
             
+            axis.set_xticks(ticks=[])
+            axis.set_yticks(ticks=[])
+
+            axis.set_xlabel("X Position", fontsize="20")
+            axis.set_ylabel("Y Position", fontsize="20")
+            
             # axis.arrow(center[0], center[1], 
             #         dx=torch.cos(movement_angle[i]), dy=torch.sin(movement_angle[i]), 
             #         width=0.05, color='red', label='Angle')
 
-            axis.legend(loc='lower left')
+            axis.legend(loc='lower left', fontsize=20)
 
 
     anim = FuncAnimation(fig, animate, frames = steps, interval = dt * 1000, repeat_delay=1000)
@@ -195,9 +204,9 @@ if __name__ == "__main__":
 
     trajX = torch.linspace(0, 10, steps)
     # along semi circle
-    # trajY = (-2*max_depth / length)*torch.sqrt((length/2)**2 - (trajX - (length/2))**2)
+    trajY = (-2*max_depth / length)*torch.sqrt((length/2)**2 - (trajX - (length/2))**2)
     # along parabola
-    trajY = (4*max_depth/(length**2)) * trajX * (trajX - length)
+    # trajY = (4*max_depth/(length**2)) * trajX * (trajX - length)
 
     pos = torch.stack((trajX, trajY), dim=1)
 
