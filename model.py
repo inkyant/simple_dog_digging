@@ -98,8 +98,8 @@ def getRhoAnglesVector(entrance_angle, width, depths, friction_angle, soil_cohes
 
     for d in depths:
         # compute the minimum of the function with multiple values
-        precision = 0.01
-        x = torch.linspace(0*to_rad, 60*to_rad, int(90/precision), requires_grad = True)
+        steps = 4000
+        x = torch.linspace(0*to_rad, 60*to_rad, steps, requires_grad = True)
         Y = getForceVector(entrance_angle, width, d, friction_angle, soil_cohesion, soil_weight, rho=x)
         
         # y = torch.sum(Y)
