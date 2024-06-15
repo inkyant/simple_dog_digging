@@ -7,6 +7,7 @@ import torch
 from torch import cos, sin, tan
 
 from model import getForceVector, getRhoAnglesVector, getSoilMetalFrictionAngle
+from endEffectorCalc import getFootPosForAngles
 
 to_rads = torch.pi / 180.0
 
@@ -54,25 +55,12 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
     axs[0].plot(pos[:, 0], pos[:, 1])[0]
     axs[0].set(xlim=[-1, length+1], ylim=[2*max_depth, 2], title="Position")
 
-    # axs[0][1].set_visible(False)
-
     axs[1].plot(pos[:, 0], soil_forces[:, 1], label="Vertical Force")[0]
     axs[1].plot(pos[:, 0], soil_forces[:, 0], label="Horizontal Force")[0]
     axs[1].set(title="Soil Force vs. X Position")
     axs[1].legend()
 
-    # axs[1][1].plot(pos[:, 0], soil_forces[:, 0])[0]
-    # axs[1][1].set(title="X Soil Force vs. X Position")
-
-    # ax5.plot(pos[:, 0], force_applied[:, 1])[0]
-    # ax5.set(title="Y Force Applied vs. X Position")
-    
-    # ax6.plot(pos[:, 0], force_applied[:, 0])[0]
-    # ax6.set(title="X Force Applied vs. X Position")
-
     fig.tight_layout()
-
-    # plt.show()
 
     #### ANIMATION ####
 
@@ -80,8 +68,7 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
     fig.set_size_inches(9, 9)
     
     # marking the x-axis and y-axis 
-    axis = plt.axes(xlim =(0, 10),  
-                    ylim =(-10, 1))  
+    axis = plt.axes()  
     
     # initializing a line variable 
     line, = axis.plot([], [], lw = 3)  
@@ -126,8 +113,8 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
                     dx=total_force[i, 0]*scale, dy=total_force[i, 1]*scale, 
                     width=0.05, color='green', label='Force Total')
             
-            axis.set_xticks(ticks=[])
-            axis.set_yticks(ticks=[])
+            # axis.set_xticks(ticks=[])
+            # axis.set_yticks(ticks=[])
 
             axis.set_xlabel("X Position", fontsize="20")
             axis.set_ylabel("Y Position", fontsize="20")
