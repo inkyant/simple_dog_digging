@@ -18,6 +18,7 @@ def getForcesForPath(pos, time, steps, entrance_angle, width, acc=None):
     vel = torch.diff(pos, dim=0) / dt
 
     if acc is None:
+        print("acc not specfied, calculating...")
         acc = torch.diff(vel, dim=0) / dt
         # fill in by just assuming starting accel, also switch from cm/s^2 to m / s^2
         acc = 0.01 * torch.cat((acc[0, :].reshape((1,2)), acc[0, :].reshape((1,2)), acc), dim=0)
@@ -42,6 +43,21 @@ def getForcesForPath(pos, time, steps, entrance_angle, width, acc=None):
     # ΣF = ma, so F_a + F_s = ma, so F_a = ma - F_s
     total_force = torch.stack((mass, mass), dim=1) * acc
     force_applied = total_force - soil_forces
+
+    fig, axs = plt.subplots(2, 1)
+
+    axs[0].plot(pos[:, 0], vel[:, 1], label="Vertical Velocity")[0]
+    axs[0].plot(pos[:, 0], vel[:, 0], label="Horizontal Velocity")[0]
+    axs[0].set(title="Velocity vs. X Position")
+    axs[0].legend()
+
+    axs[1].plot(pos[:, 0], acc[:, 1], label="Vertical Acceleration")[0]
+    axs[1].plot(pos[:, 0], acc[:, 0], label="Horizontal Acceleration")[0]
+    axs[1].set(title="Acceleration vs. X Position")
+    axs[1].legend()
+
+    fig.tight_layout()
+    fig.show()
 
     return force_applied, soil_forces, total_force
 
@@ -109,9 +125,9 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
                     dx=soil_forces[i, 0]*scale, dy=soil_forces[i, 1]*scale, 
                     width=0.05, color='orange', label='Soil Reaction Force')
             
-            axis.arrow(center[0], center[1], 
-                    dx=total_force[i, 0]*scale, dy=total_force[i, 1]*scale, 
-                    width=0.05, color='green', label='Force Total')
+            # axis.arrow(center[0], center[1], 
+            #         dx=total_force[i, 0]*scale, dy=total_force[i, 1]*scale, 
+            #         width=0.05, color='green', label='Force Total')
             
             # axis.set_xticks(ticks=[])
             # axis.set_yticks(ticks=[])
@@ -142,44 +158,12 @@ def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, ste
             print("video file saved.")
 
 
-class SimState():
-    def __init__(self):
-        self.max_depth = 0
-        self.pos = torch.tensor([0, 0])
-        self.vel = torch.tensor([0, 0])
-
-    def update(self, acc, dt):
-        self.pos += self.vel*dt
-        self.vel += acc*dt
-        self.max_depth = max(self.max_depth, -self.pos[1].item())
-
-
-def IK(force, dt, entrance_angle, width, s: SimState):
-
-    # soil params
-    friction_angle = torch.tensor(31 * to_rads)
-    cohesion = 0.294
-    density = 2
-    rho = getRhoAnglesVector(entrance_angle, width, s.pos[1], friction_angle, cohesion, density)
-
-    mass = density * width * 0.5 * (s.max_depth**2) * (1/tan(entrance_angle) + 1/tan(rho))
-
-    soil_force = getForceVector(entrance_angle, width, s.pos[1], 
-                                 friction_angle, cohesion, density, rho=rho)
-
-    # ΣF = ma, so F_a + F_s = ma, so a = (F_a + F_s)/m
-    acc = (force + soil_force) / mass
-
-    s.update(acc, dt)
-
-
 if __name__ == "__main__":
 
     # sim params
     steps = 4000
     time = 10
     dt = time / steps
-    state = SimState()
 
     # # foot params
     entrance_angle = torch.tensor(80*to_rads)
@@ -199,10 +183,24 @@ if __name__ == "__main__":
 
     acc = torch.stack((torch.zeros(steps), torch.ones(steps) * 0.4), dim=1)
 
+    if True:
+        angle1 = torch.linspace(0, 0, steps)
+        angle2 = torch.linspace(0, torch.pi / 2, steps)
+
+        pos = getFootPosForAngles(torch.stack((angle1, angle2), dim=1), 2, 2)
+        acc = None
+    
+    if True:
+        steps = 4000
+        angle1 = torch.cat((torch.linspace(0, torch.pi / 8, steps // 2), torch.linspace(torch.pi / 8, 0, steps // 2)))
+        angle2 = torch.linspace(torch.pi / 4, 3 * torch.pi / 4, steps)
+
+        pos = getFootPosForAngles(torch.stack((angle1, angle2), dim=1), 12, 12)
+        acc = None
+
+
     f_applied, f_soil, f_total = getForcesForPath(pos, time, steps, entrance_angle, width, acc=acc)
 
 
     displaySim(pos, f_soil, f_applied, f_total, entrance_angle, steps, dt)
 
-    # for i in torch.linspace(0, time, steps):
-    #     IK(f_applied[i], dt, entrance_angle, width, state)
