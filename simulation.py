@@ -191,7 +191,6 @@ if __name__ == "__main__":
         acc = None
     
     if True:
-        steps = 4000
         angle1 = torch.cat((torch.linspace(0, torch.pi / 8, steps // 2), torch.linspace(torch.pi / 8, 0, steps // 2)))
         angle2 = torch.linspace(torch.pi / 4, 3 * torch.pi / 4, steps)
 
