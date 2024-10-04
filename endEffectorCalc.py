@@ -1,9 +1,12 @@
 import numpy as np
 
 import torch
-from torch import cos, sin
+from torch import cos, sin, tan
 
 import matplotlib.pyplot as plt
+
+from matplotlib.animation import FuncAnimation
+from matplotlib.patches import Rectangle
 
 # using denavit-hartenberg convention
 
@@ -30,27 +33,70 @@ def getFootPosForAngles(angles: torch.Tensor, leg1, leg2):
 
     pos = full_transform[:, 0:2, 3]
 
-    start_pos = pos[0].expand(pos.size(0), -1)
+    return pos
 
-    return pos - start_pos
+
+def getCalfPosForAngles(angles: torch.Tensor, leg1):
+    
+    full_transform = getTransformMatrix(angles + torch.pi, leg1)
+
+    pos = full_transform[:, 0:2, 3]
+
+    return pos
 
 
 if __name__ == '__main__':
 
     steps = 4000
-    angle1 = torch.cat((torch.linspace(0, torch.pi / 8, steps // 2), torch.linspace(torch.pi / 8, 0, steps // 2)))
-    angle2 = torch.linspace(torch.pi / 4, 3 * torch.pi / 4, steps)
+    angle1 = torch.cat((torch.linspace(0, (1/8) * torch.pi, steps//2), torch.linspace((1/8) * torch.pi, 0, steps//2)))
+    angle2 = torch.linspace(0, (3/4) * torch.pi, steps)
 
     pos = getFootPosForAngles(torch.stack((angle1, angle2), dim=1), 12, 12)
+    calf_pos = getCalfPosForAngles(angle1, 12)
 
-    print(pos, "\n size:", pos.shape)
+    fig = plt.figure()
+    fig.set_size_inches(9, 9)
+    
+    # marking the x-axis and y-axis 
+    axis = plt.axes()  
+    
+    entrance_angle = angle1 + angle2
 
-    c = torch.linspace(0, 1,  steps)
-    c[(steps//2 - 10):(steps//2 + 10)] = 1
+    dirt_height = -5
 
-    plt.scatter(pos[:, 0], pos[:, 1], c=c)
+    xlim=[-25, 25]
 
+    dirt_intersect_idx = torch.argmin(abs(pos[:(steps//2), 1] - dirt_height)).item()
+
+    def animate(i):
+
+        axis.clear()
+        if i > 1:
+
+            dirtX = [xlim[0], pos[dirt_intersect_idx, 0].item()]
+            dirtY = [dirt_height, pos[dirt_intersect_idx, 1].item()]
+
+            if (i > dirt_intersect_idx):
+
+                dist_back = torch.tensor([pos[i, 0] - ((pos[i, 1] - dirt_height) / tan(entrance_angle[i]))])
+
+                dirtX = torch.cat((torch.tensor(dirtX), pos[dirt_intersect_idx:i, 0], dist_back, torch.tensor([xlim[1]])))
+                dirtY = torch.cat((torch.tensor(dirtY), pos[dirt_intersect_idx:i, 1], torch.tensor([dirt_height, dirt_height])))
+            else:
+                dirtX.append(xlim[1])
+                dirtY.append(dirt_height)
+
+            axis.plot(dirtX, dirtY, color='brown')
+
+            axis.set(xlim=xlim, ylim=[-25, 10])
+
+            axis.plot([pos[i, 0], calf_pos[i, 0]], [pos[i, 1], calf_pos[i, 1]], color='blue', linewidth=4)
+            axis.plot([calf_pos[i, 0], 0], [calf_pos[i, 1], 0], color='blue', linewidth=4)
+
+    anim = FuncAnimation(fig, animate, frames = steps, interval = 1, repeat_delay=1000)
+    
     plt.show()
+
 
 
 

@@ -6,12 +6,17 @@ from matplotlib.patches import Rectangle
 import torch
 from torch import cos, sin, tan
 
-from model import getForceVector, getRhoAnglesVector, getSoilMetalFrictionAngle
-from endEffectorCalc import getFootPosForAngles
+from model import getForceVector, getRhoAnglesVector
+from endEffectorCalc import getFootPosForAngles, getCalfPosForAngles
 
 to_rads = torch.pi / 180.0
 
 def getForcesForPath(pos, time, steps, entrance_angle, width, acc=None):
+
+    # new = torch.zeros_like(pos)
+    # mask = pos[:, 1] > 0
+    # new[mask] = pos[mask]
+    # pos = new
 
     dt = time / steps
 
@@ -44,107 +49,159 @@ def getForcesForPath(pos, time, steps, entrance_angle, width, acc=None):
     total_force = torch.stack((mass, mass), dim=1) * acc
     force_applied = total_force - soil_forces
 
-    fig, axs = plt.subplots(2, 1)
+    # fig, axs = plt.subplots(2, 1)
 
-    axs[0].plot(pos[:, 0], vel[:, 1], label="Vertical Velocity")[0]
-    axs[0].plot(pos[:, 0], vel[:, 0], label="Horizontal Velocity")[0]
-    axs[0].set(title="Velocity vs. X Position")
-    axs[0].legend()
+    # axs[0].plot(pos[:, 0], vel[:, 1], label="Vertical Velocity")[0]
+    # axs[0].plot(pos[:, 0], vel[:, 0], label="Horizontal Velocity")[0]
+    # axs[0].set(title="Velocity vs. X Position")
+    # axs[0].legend()
 
-    axs[1].plot(pos[:, 0], acc[:, 1], label="Vertical Acceleration")[0]
-    axs[1].plot(pos[:, 0], acc[:, 0], label="Horizontal Acceleration")[0]
-    axs[1].set(title="Acceleration vs. X Position")
-    axs[1].legend()
+    # axs[1].plot(pos[:, 0], acc[:, 1], label="Vertical Acceleration")[0]
+    # axs[1].plot(pos[:, 0], acc[:, 0], label="Horizontal Acceleration")[0]
+    # axs[1].set(title="Acceleration vs. X Position")
+    # axs[1].legend()
 
-    fig.tight_layout()
-    fig.show()
+    # fig.tight_layout()
+    # fig.show()
 
     return force_applied, soil_forces, total_force
 
-def displaySim(pos, soil_forces, force_applied, total_force, entrance_angle, steps, dt):
+def displaySim(pos, soil_forces, force_applied, calf_pos, entrance_angle, dirt_height, len1, len2, steps, dt):
 
-    max_depth = torch.min(pos[:, 1]).item()
-    length = pos[steps-1, 0]
+    dirt_intersect_idx = torch.argmin(abs(pos[:(steps//2), 1] - dirt_height)).item()
 
-    fig, axs = plt.subplots(nrows=2, ncols=1)
+    # calculate torque with cross product in three dimensions
+    c = torch.cat((calf_pos[dirt_intersect_idx:, :], torch.zeros((steps - dirt_intersect_idx, 1))), dim=1) / 100
+    p = torch.cat((pos[dirt_intersect_idx:, :], torch.zeros((steps - dirt_intersect_idx, 1))), dim=1) / 100
+    f = torch.cat((force_applied[dirt_intersect_idx:, :], torch.zeros((steps - dirt_intersect_idx, 1))), dim=1)
+    hip_torque = torch.cross(p, f)
+    calf_torque = torch.cross(p - c, f)
 
-    axs[0].plot(pos[:, 0], pos[:, 1])[0]
-    axs[0].set(xlim=[-1, length+1], ylim=[2*max_depth, 2], title="Position")
+    hip_torque = hip_torque.norm(dim=1)
+    calf_torque = calf_torque.norm(dim=1)
 
-    axs[1].plot(pos[:, 0], soil_forces[:, 1], label="Vertical Force")[0]
-    axs[1].plot(pos[:, 0], soil_forces[:, 0], label="Horizontal Force")[0]
-    axs[1].set(title="Soil Force vs. X Position")
-    axs[1].legend()
+
+    fig, axs = plt.subplots(nrows=1, ncols=1)
+
+    axs.plot(pos[dirt_intersect_idx:, 0], pos[dirt_intersect_idx:, 1])[0]
+    axs.set_title("Foot Path", fontsize=28)
+    fig.set_size_inches(9, 9)
+    axs.set_xlabel("X Position (cm)", fontsize="25")
+    axs.set_ylabel("Y Position (cm)", fontsize="25")
+    axs.set_xticks(ticks=[-20, -17, -14, -11, -8], labels=["0", "3", "6", "9", "12"], fontsize=20)
+    axs.set_yticks(ticks=[-6, -11], labels=["0", "-5"], fontsize=20)
+    fig.show()
+    fig, axs = plt.subplots(nrows=1, ncols=1)
+
+
+    axs.plot(pos[dirt_intersect_idx:, 0], soil_forces[dirt_intersect_idx:, 1], label="Vertical Force")[0]
+    axs.plot(pos[dirt_intersect_idx:, 0], soil_forces[dirt_intersect_idx:, 0], label="Horizontal Force")[0]
+    axs.set_title("Soil Force vs. X Position", fontsize=28)
+    fig.set_size_inches(9, 9)
+    axs.legend(fontsize="20", loc="lower left")
+    axs.set_xlabel("X Position (cm)", fontsize="25")
+    axs.set_ylabel("Force (N)", fontsize="25")
+    axs.set_xticks(ticks=[-20, -17, -14, -11, -8], labels=["0", "3", "6", "9", "12"], fontsize=20)
+    axs.set_yticks(ticks=[0, -20], labels=["0", "-20"], fontsize=20)
+    fig.show()
+
+    fig, axs = plt.subplots(nrows=1, ncols=1)
+
+    # axs.set_title("Hip Torque vs. X Position", fontsize=28)
+    # fig.set_size_inches(9, 9)
+    # axs.set_xlabel("X Position (cm)", fontsize="25")
+    # axs.set_ylabel("Torque (Nm)", fontsize="25")
+    # axs.set_xticks(ticks=[-20, -17, -14, -11, -8], labels=["0", "3", "6", "9", "12"], fontsize=20)
+    # axs.set_yticks(ticks=[0, 2], labels=["0", "2"], fontsize=20)
+    # fig.show()
+    # fig, axs = plt.subplots(nrows=1, ncols=1)
+
+    axs.plot(pos[dirt_intersect_idx:, 0], calf_torque, label="Calf Torque")[0]
+    axs.plot(pos[dirt_intersect_idx:, 0], hip_torque, label="Hip Torque")[0]
+    axs.set_title("Joint Torques vs. X Position", fontsize=28)
+    axs.legend(fontsize="20", loc="lower left")
+    fig.set_size_inches(9, 9)
+    axs.set_xlabel("X Position (cm)", fontsize="25")
+    axs.set_ylabel("Torque (Nm)", fontsize="25")
+    axs.set_xticks(ticks=[-20, -17, -14, -11, -8], labels=["0", "3", "6", "9", "12"], fontsize=20)
+    axs.set_yticks(ticks=[0, 2], labels=["0", "2"], fontsize=20)
+    fig.show()
 
     fig.tight_layout()
 
     #### ANIMATION ####
 
-    fig = plt.figure()  
+    fig = plt.figure()
     fig.set_size_inches(9, 9)
-    
-    # marking the x-axis and y-axis 
-    axis = plt.axes()  
-    
-    # initializing a line variable 
-    line, = axis.plot([], [], lw = 3)  
-    line.set_data([], []) 
-
-    # leg display width
-    width = 0.2
-    offset = width / 2
+    axis = plt.axes() 
     
     # scale down force vectors
-    scale = 0.1
+    scale = 0.5
+
+    xlim = [-(len1+len2+1), len1]
 
     def animate(i): 
 
         axis.clear()
         if i > 1:
 
-            dirt_beforeX = torch.tensor((-1, 0))
+            dirtX = [xlim[0], pos[dirt_intersect_idx, 0].item()]
+            dirtY = [dirt_height, pos[dirt_intersect_idx, 1].item()]
 
-            dist_back = pos[i, 1].item() * (1/tan(entrance_angle))
+            if (i > dirt_intersect_idx):
+                dist_back = torch.tensor([pos[i, 0] - ((pos[i, 1] - dirt_height) / tan(entrance_angle[i]))])
 
-            dirt_extendX = torch.tensor((pos[i, 0].item() + dist_back, length+1))
-            dirt_extendY = torch.tensor((0, 0))
-
-            axis.plot(torch.cat((dirt_beforeX, pos[:i, 0], dirt_extendX)), 
-                      torch.cat((dirt_extendY, pos[:i, 1], dirt_extendY)), color='brown')
-            axis.set(xlim=[-1, length+1], ylim=[2*max_depth, 1])
-        
-            center = (pos[i, 0].item(), pos[i, 1].item())
-
-            axis.add_patch(Rectangle((pos[i, 0] - offset, pos[i, 1] - offset), width, 10, angle=90-entrance_angle*(1/to_rads), rotation_point=center))
+                dirtX = torch.cat((torch.tensor(dirtX), pos[dirt_intersect_idx:i, 0], dist_back, torch.tensor([xlim[1]])))
+                dirtY = torch.cat((torch.tensor(dirtY), pos[dirt_intersect_idx:i, 1], torch.tensor([dirt_height, dirt_height])))
             
-            axis.arrow(center[0], center[1], 
-                    dx=force_applied[i, 0]*scale, dy=force_applied[i, 1]*scale, 
-                    width=0.05, color='black', label='Force Applied')
             
-            axis.arrow(center[0], center[1], 
-                    dx=soil_forces[i, 0]*scale, dy=soil_forces[i, 1]*scale, 
-                    width=0.05, color='orange', label='Soil Reaction Force')
-            
-            # axis.arrow(center[0], center[1], 
-            #         dx=total_force[i, 0]*scale, dy=total_force[i, 1]*scale, 
-            #         width=0.05, color='green', label='Force Total')
-            
-            # axis.set_xticks(ticks=[])
-            # axis.set_yticks(ticks=[])
+                axis.arrow(pos[i, 0], pos[i, 1], 
+                        dx=force_applied[i, 0]*scale, dy=force_applied[i, 1]*scale, 
+                        width=0.05, color='black', label='Force Applied')
+                
+                axis.arrow(pos[i, 0], pos[i, 1], 
+                        dx=soil_forces[i, 0]*scale, dy=soil_forces[i, 1]*scale, 
+                        width=0.05, color='orange', label='Soil Reaction Force')
+                
+                axis.legend(loc='upper left', fontsize=20)
+                
+            else:
+                dirtX.append(xlim[1])
+                dirtY.append(dirt_height)
 
-            axis.set_xlabel("X Position", fontsize="20")
-            axis.set_ylabel("Y Position", fontsize="20")
-            
-            # axis.arrow(center[0], center[1], 
-            #         dx=torch.cos(movement_angle[i]), dy=torch.sin(movement_angle[i]), 
-            #         width=0.05, color='red', label='Angle')
+            axis.plot(dirtX, dirtY, color='brown')
 
-            axis.legend(loc='lower left', fontsize=20)
+            axis.set(xlim=xlim, ylim=[-(len1+1), 10])
+
+            axis.plot([pos[i, 0], calf_pos[i, 0]], [pos[i, 1], calf_pos[i, 1]], color='blue', linewidth=4)
+            axis.plot([calf_pos[i, 0], 0], [calf_pos[i, 1], 0], color='blue', linewidth=4)
+
+            axis.set_xticks(ticks=[])
+            axis.set_yticks(ticks=[])
+
+            axis.set_xlabel("X Position (cm)", fontsize="25")
+            axis.set_ylabel("Y Position (cm)", fontsize="25")
+            axis.set_title(f"Simulation Display", fontsize=28)
 
 
-    anim = FuncAnimation(fig, animate, frames = steps, interval = dt * 1000, repeat_delay=1000)
+    animate(1*400)
+    fig.show()
+
+    fig = plt.figure()
+    fig.set_size_inches(9, 9)
+    axis = plt.axes() 
+    animate(6*400)
+    fig.show()
+
+    fig = plt.figure()
+    fig.set_size_inches(9, 9)
+    axis = plt.axes() 
+    animate(9*400)
+    fig.show()
+
+    # anim = FuncAnimation(fig, animate, frames = steps, interval = dt * 1000, repeat_delay=1000)
     
-    plt.show()
+    # plt.show()
 
 
     ask = 'y' # set to 'y' to prompt for saving video
@@ -165,41 +222,27 @@ if __name__ == "__main__":
     time = 10
     dt = time / steps
 
-    # # foot params
-    entrance_angle = torch.tensor(80*to_rads)
-    width = 5
 
-    ### foot digging trajectory
-    max_depth = 5
-    length = 10
+    # angle1 = torch.cat((torch.linspace(0, torch.pi / 8, steps // 2), torch.linspace(torch.pi / 8, 0, steps // 2)))
+    # angle2 = torch.linspace(0, 3 * torch.pi / 4, steps)
 
-    trajX = torch.linspace(0, 10, steps)
-    # along semi circle
-    trajY = (-2*max_depth / length)*torch.sqrt((length/2)**2 - (trajX - (length/2))**2)
-    # along parabola
-    # trajY = (4*max_depth/(length**2)) * trajX * (trajX - length)
+    # angle1 = torch.cat((torch.linspace(-torch.pi / 8, 0, steps // 2), torch.linspace(0, -torch.pi / 8, steps // 2)))
+    # angle2 = torch.linspace(torch.pi / 2, 3 * torch.pi / 4, steps)
 
-    pos = torch.stack((trajX, trajY), dim=1)
+    angle1 = torch.linspace(0, 0, steps)
+    angle2 = torch.linspace(torch.pi / 6, 5 * torch.pi / 8, steps)
 
-    acc = torch.stack((torch.zeros(steps), torch.ones(steps) * 0.4), dim=1)
+    leg_len = 11
 
-    if True:
-        angle1 = torch.linspace(0, 0, steps)
-        angle2 = torch.linspace(0, torch.pi / 2, steps)
+    pos = getFootPosForAngles(torch.stack((angle1, angle2), dim=1), leg_len, leg_len)
+    calf_pos = getCalfPosForAngles(angle1, leg_len)
+    acc = None
 
-        pos = getFootPosForAngles(torch.stack((angle1, angle2), dim=1), 2, 2)
-        acc = None
-    
-    if True:
-        angle1 = torch.cat((torch.linspace(0, torch.pi / 8, steps // 2), torch.linspace(torch.pi / 8, 0, steps // 2)))
-        angle2 = torch.linspace(torch.pi / 4, 3 * torch.pi / 4, steps)
-
-        pos = getFootPosForAngles(torch.stack((angle1, angle2), dim=1), 12, 12)
-        acc = None
+    entrance_angle = angle1 + angle2
+    dirt_pos = -6
 
 
-    f_applied, f_soil, f_total = getForcesForPath(pos, time, steps, entrance_angle, width, acc=acc)
+    f_applied, f_soil, f_total = getForcesForPath(pos - dirt_pos, time, steps, entrance_angle, 5, acc=acc)
 
-
-    displaySim(pos, f_soil, f_applied, f_total, entrance_angle, steps, dt)
+    displaySim(pos, f_soil, f_applied, calf_pos, entrance_angle, dirt_pos, leg_len, leg_len, steps, dt)
 

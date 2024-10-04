@@ -144,9 +144,11 @@ def getForceVector(entrance_angle, width, depth, friction_angle, soil_cohesion, 
     normal_force_rupture = W / cos(rho)
     rupture_friction_force = normal_force_rupture * tan(friction_angle)
 
+    W[entrance_angle < torch.pi/2] = 0
+
     x = -adhesion_force*cos(entrance_angle) + 2*side_friction_force*cos(rho) + normal_force_rupture*sin(rho) + rupture_friction_force*cos(rho) + cohesion*cos(rho)
 
-    y = W + 2*side_friction_force*sin(rho) + cohesion*sin(rho) + rupture_friction_force*sin(rho) + cohesion*sin(rho) + adhesion_force*sin(entrance_angle) - normal_force_rupture*cos(rho)
+    y = W + 2*side_friction_force*sin(rho) + cohesion*sin(rho) + rupture_friction_force*sin(rho) + adhesion_force*sin(entrance_angle) - normal_force_rupture*cos(rho)
 
     return 0.1 * torch.stack((-x, -y), dim=1)
 
